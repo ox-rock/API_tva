@@ -14,9 +14,9 @@ addIP() {
     value["$1_whoiscymru"]="$6"	
 }
 
-tshark -r 2020_07_07_180408.pcap -E separator=, -T fields -e tcp.stream -e ip.src -e tcp.srcport -e ip.dst -e tcp.dstport -e frame.time_relative -e ssl.handshake.extensions_server_name > sni 
-
 for protocol in udp tcp; do
+    tshark -r 2020_07_07_180408.pcap -E separator=, -T fields -e $protocol.stream -e ip.src -e $protocol.srcport -e ip.dst -e $protocol.dstport -e frame.time_relative -e ssl.handshake.extensions_server_name > ${protocol}_sni 
+
     cnt=$(tshark -r 2020_07_07_180408.pcap -qz conv,$protocol | head -n -1 | tail -n +6 | wc -l)
     tshark -r 2020_07_07_180408.pcap -qz conv,$protocol | head -n -1 | tail -n +6 | {
 
@@ -27,11 +27,11 @@ for protocol in udp tcp; do
 	AddressB=$(echo $AddressB_PortB | cut -f1 -d:)
 	PortA=$(echo $AddressA_PortA | cut -f2 -d:)
 
-	id=$(cat sni | grep ${start} | cut -f1 -d',')
+	id=$(cat ${protocol}_sni | grep ${start} | cut -f1 -d',')
 
 	printf "\rProcessing [$i/$cnt] $protocol conversation..." 1>&2
 	i=$((i+1))
-        printf "$id,${AddressA_PortA//':'/,},${AddressB_PortB//':'/,},$B_A_Frames,$B_A_Bytes,$A_B_Frames,$A_B_Bytes,$Total_Frames,$Total_bytes, $start, $duration"
+        printf "$id,${AddressA_PortA//':'/,},${AddressB_PortB//':'/,},$B_A_Frames,$B_A_Bytes,$A_B_Frames,$A_B_Bytes,$Total_Frames,$Total_bytes,$start,$duration"
 
 	nslookup=$(cat nslookup.log | grep ${AddressB} | cut -f2 -d',')
         if [ -z "$nslookup" ]; then 
@@ -50,40 +50,43 @@ for protocol in udp tcp; do
 
 	if [ "$bool" == "false" ]; then 
 	    #Reverse DNS resolution by OpenDNS, CloudFlare and AdGuard DNS
-            openDNS=$(dig +short @208.67.222.222 -x ${AddressB})
+            openDNS=$(dig +short @208.67.222.222 -x ${AddressB} | tr '\n' ' ')
 	    if [ -z "$openDNS" ]; then 
                 openDNS="null"
 	    fi
-	    cloudflareDNS=$(dig +short @1.1.1.1 -x ${AddressB})
+	    cloudflareDNS=$(dig +short @1.1.1.1 -x ${AddressB} | tr '\n' ' ')
 	    if [ -z "$cloudflareDNS" ]; then 
                 cloudflareDNS="null"
 	    fi
-	    adguardDNS=$(dig +short @176.103.130.130 -x ${AddressB})
+	    adguardDNS=$(dig +short @176.103.130.130 -x ${AddressB} | tr '\n' ' ')
 	    if [ -z "$adguardDNS" ]; then 
                 adguardDNS="null"
 	    fi
 
             #whois query
-	    whois=$(whois ${AddressB} | grep -i "org-name" | cut -f2 -d:)
+	    whois=$(whois ${AddressB} | grep -i "org-name" | uniq | cut -f2 -d: | sed -e 's/^[ \t]*//')
 	    if [ -z "$whois" ]; then  
-                whois=$(whois ${AddressB} | grep -i "OrgName" | cut -f2 -d:)
+                whois=$(whois ${AddressB} | grep -i "OrgName" | uniq | cut -f2 -d: | sed -e 's/^[ \t]*//')
  		if [ -z "$whois" ]; then
-                    whois=$(whois 5.9.13.67 | grep -i "descr" | head -n 1 | cut -f2 -d:)
+                    whois=$(whois ${AddressB} | grep -i "descr" | uniq | head -n 1 | cut -f2 -d: | sed -e 's/^[ \t]*//')
 		    if [ -z "$whois" ]; then
                         whois="null"
 		    fi
 	        fi
 	    fi
 	    
+
+
+
             #whois query by Team Cymru
             whoiscymru=$(whois -h whois.cymru.com ${AddressB} | tail -n 1 | cut -f3 -d'|')
 	       
-            addIP $AddressB "$openDNS" "$cloudflareDNS" "$adguardDNS" "$whois" "$whoiscymru"
-	    printf ",\"${openDNS}\",\"${cloudflareDNS}\",\"${adguardDNS}\",\"${whois}\",\"${whoiscymru}\"," 
+            addIP "$AddressB" "$openDNS" "$cloudflareDNS" "$adguardDNS" "$whois" "$whoiscymru"
+	    printf ",\"$openDNS\",\"$cloudflareDNS\",\"$adguardDNS\",\"$whois\",\"$whoiscymru\"," 
 	fi
 
     	#SNI extraction from pcap
-	sni=$(cat sni | grep ${id}, | grep ,${AddressB}, | grep ,${PortA}, | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
+	sni=$(cat ${protocol}_sni | grep ${id}, | grep ,${AddressB}, | grep ,${PortA}, | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
         if [ -z "$sni" ]; then
             sni="null"
 	fi
@@ -92,9 +95,9 @@ for protocol in udp tcp; do
     done >> ${protocol}_conv.txt
 	printf "\n"
 }
-
+rm ${protocol}_sni
 done
 
-rm sni
+
 ELAPSED_TIME=$(($SECONDS - $START_TIME))
-printf "\nElapsed time: $(($ELAPSED_TIME%60))s\n"
+printf "\nElapsed time: $(($ELAPSED_TIME))s\n"
