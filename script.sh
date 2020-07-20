@@ -100,17 +100,17 @@ conv2csv() {
 
 	    #SNI & Host HTTP extraction
 	    if [ "$protocol" == "tcp" ]; then 	
-		sni=$(cat temp_tcp | grep "^${id}" | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
+		sni=$(cat temp_tcp | grep "^${id}," | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
 		if [ -z "$sni" ]; then
 		    sni="null"
 		fi
-	        host=$(cat temp_tcp | grep "^${id}" | cut -f8 -d',' | uniq | head -n 2 | tail -n 1 )
+	        host=$(cat temp_tcp | grep "^${id}," | cut -f8 -d',' | uniq | head -n 2 | tail -n 1 )
 	        if [ -z "$host" ]; then
 		    host="null"
 	        fi
 	        printf "$sni,$host\n"
 	    else 
-	        host=$(cat temp_udp | grep "^${id}" | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
+	        host=$(cat temp_udp | grep "^${id}," | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
 	        if [ -z "$host" ]; then
 		    host="null"
 	        fi
