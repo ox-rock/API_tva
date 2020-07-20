@@ -17,11 +17,11 @@ addIP() {
 pcap_file=$(find . -type f -name '*.pcap' -or -name '*.pcapng')
 printf "Reading $pcap_file\n"
 
-   tshark -r $pcap_file -E separator=, -T fields -e tcp.stream -e ip.src -e tcp.srcport -e ip.dst -e tcp.dstport -e frame.time_relative -e ssl.handshake.extensions_server_name -e http.host -Y "ip" > temp_tcp 
+   tshark -r $pcap_file -E separator=, -T fields -e tcp.stream -e ip.src -e tcp.srcport -e ip.dst -e tcp.dstport -e frame.time_relative -e ssl.handshake.extensions_server_name -e http.host -Y "ip and tcp" > temp_tcp 
 
-   tshark -r $pcap_file -E separator=, -T fields -e udp.stream -e ip.src -e udp.srcport -e ip.dst -e udp.dstport -e frame.time_relative -e http.host -Y "ip" > temp_udp 
+   tshark -r $pcap_file -E separator=, -T fields -e udp.stream -e ip.src -e udp.srcport -e ip.dst -e udp.dstport -e frame.time_relative -Y "ip and udp" > temp_udp 
 
-   tshark -r $pcap_file -E separator=/s -T fields -e dns.a -e dns.qry.name -Y "(dns.flags.response == 1 )" > temp_dns
+   tshark -r $pcap_file -E separator=/s -T fields -e dns.a -e dns.qry.name -Y "(dns.flags.response==1)" > temp_dns
 
 conv2csv() {
     cnt=$(tshark -r $pcap_file -qz conv,$protocol,ip | head -n -1 | tail -n +6 | wc -l)
@@ -100,17 +100,17 @@ conv2csv() {
 
 	    #SNI & Host HTTP extraction
 	    if [ "$protocol" == "tcp" ]; then 	
-		sni=$(cat temp_tcp | grep ${id} | grep ${AddressB} | grep ${PortA} | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
+		sni=$(cat temp_tcp | grep "^${id}" | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
 		if [ -z "$sni" ]; then
 		    sni="null"
 		fi
-	        host=$(cat temp_tcp | grep ${id} | grep ${AddressB} | grep ${PortA} | cut -f8 -d',' | uniq | head -n 2 | tail -n 1 )
+	        host=$(cat temp_tcp | grep "^${id}" | cut -f8 -d',' | uniq | head -n 2 | tail -n 1 )
 	        if [ -z "$host" ]; then
 		    host="null"
 	        fi
 	        printf "$sni,$host\n"
 	    else 
-	        host=$(cat temp_udp | grep ${id} | grep ${AddressB} | grep ${PortA} | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
+	        host=$(cat temp_udp | grep "^${id}" | cut -f7 -d',' | uniq | head -n 2 | tail -n 1 )
 	        if [ -z "$host" ]; then
 		    host="null"
 	        fi
