@@ -1,4 +1,3 @@
-# API_tva
-API - Traffic video analysis script
+# A traffic video analysis script
 
 Coming soon
